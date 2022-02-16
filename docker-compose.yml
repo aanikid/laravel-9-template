@@ -1,0 +1,76 @@
+version: '3.9'
+
+services:
+    app:
+        build:
+            context: docker/app
+            dockerfile: Dockerfile
+            args:
+                USER: ${CONTAINER_USER_NAME}
+                GROUP: ${CONTAINER_GROUP_NAME}
+                UID: ${LOCAL_UID}
+                GID: ${LOCAL_GID}
+        container_name: ${CONTAINER_BASE_NAME}_app
+        labels:
+            - traefik.enable=true
+            - traefik.http.routers.`${CONTAINER_BASE_NAME}`.rule=Host(`${API_DOMAIN}`, `${FILAMENT_DOMAIN}`) # domain to expose on
+            - traefik.docker.network=traefik_proxy
+            - traefik.http.middlewares.`${CONTAINER_BASE_NAME}`.headers.customresponseheaders.Access-Control-Allow-Methods=POST, GET, PUT, OPTIONS, DELETE
+            - traefik.http.middlewares.`${CONTAINER_BASE_NAME}`.headers.customresponseheaders.Access-Control-Allow-Origin=*
+            - traefik.http.middlewares.`${CONTAINER_BASE_NAME}`.headers.customresponseheaders.Access-Control-Allow-Headers=x-requested-with, Content-Type,Authorization
+            - traefik.http.routers.`${CONTAINER_BASE_NAME}`.middlewares=`${CONTAINER_BASE_NAME}`
+        ports:
+            - ${FORWARDED_DEFAULT_PORT:-80}:80
+        volumes:
+            - ./:/var/www/app
+        networks:
+            - default
+            - traefik_proxy
+        depends_on:
+            - pgsql
+
+    pgsql:
+        image: postgres:13
+        container_name: ${CONTAINER_BASE_NAME}_pgsql
+        labels:
+            - traefik.enable=false
+        ports:
+            - ${FORWARDED_DB_PORT:-5432}:5432
+        environment:
+            PGPASSWORD: ${DB_ROOT_PASSWORD:-secret}
+            POSTGRES_DB: ${DB_DATABASE}
+            POSTGRES_USER: ${DB_USERNAME}
+            POSTGRES_PASSWORD: ${DB_PASSWORD:-secret}
+        volumes:
+            - pgsql:/var/lib/postgresql/data
+        networks:
+            - default
+        healthcheck:
+            test: [ "CMD", "pg_isready", "-q", "-d", "${DB_DATABASE}", "-U", "${DB_USERNAME}" ]
+            retries: 3
+            timeout: 5s
+
+    mailhog:
+        image: 'mailhog/mailhog:latest'
+        container_name: ${CONTAINER_BASE_NAME}_mail
+        labels:
+            - traefik.enable=true
+            - traefik.http.routers.`${CONTAINER_BASE_NAME}`_mail.rule=Host(`${MAIL_DOMAIN}`) # domain to expose on\
+            - traefik.http.services.`${CONTAINER_BASE_NAME}`_mail.loadbalancer.server.port=8025
+            - traefik.docker.network=traefik_proxy
+        ports:
+            - ${FORWARDED_MAIL_PORT:-1025}:1025
+            - ${FORWARDED_MAIL_DASHBOARD_PORT:-8025}:8025
+        networks:
+            - default
+            - traefik_proxy
+
+networks:
+    default:
+        driver: bridge
+        name: ${CONTAINER_BASE_NAME}
+    traefik_proxy:
+        external: true
+
+volumes:
+    pgsql:

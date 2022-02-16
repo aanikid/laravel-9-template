@@ -1,0 +1,32 @@
+# Laravel
+/public/hot
+/public/storage
+/storage/*.key
+.phpunit.result.cache
+# Env
+.env
+.env.backup
+docker-compose.override.yml
+Homestead.json
+Homestead.yaml
+# Dependencies vendor
+npm-debug.log
+yarn-error.log
+/node_modules
+/vendor
+# IDE
+/.idea
+/.vscode
+# Supervisord
+supervisord.log
+supervisord.pid
+# Ide helper
+_ide_helper.php
+_ide_helper_models.php
+.phpstorm.meta.php
+# Lighthouse
+programmatic-types.graphql
+schema-directives.graphql
+_lighthouse_ide_helper.php
+# Phpstorm generated schema
+schema-generated.graphql
